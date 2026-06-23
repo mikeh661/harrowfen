@@ -1,0 +1,690 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Harrowfen — The Watch on the Weir · v2.2</title>
+<style>
+  :root{
+    --bg0:#05060a;
+    --bg1:#090b13;
+    --ink:#eef0f6;
+    --muted:rgba(238,240,246,.60);
+    --faint:rgba(238,240,246,.40);
+    --gold:#cbb074;
+    --rust:#9c4b3b;
+    --water:#3f6b78;
+    --line:rgba(238,240,246,.10);
+    --panel:rgba(0,0,0,.34);
+    --ease:cubic-bezier(.2,.85,.2,1);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; height:100%; }
+  body{
+    color:var(--ink);
+    font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    font-size:18px; line-height:1.62;
+    background:
+      radial-gradient(1100px 700px at 20% -10%, rgba(63,107,120,.16), transparent 60%),
+      radial-gradient(900px 600px at 85% 0%, rgba(156,75,59,.10), transparent 55%),
+      radial-gradient(900px 700px at 60% 110%, rgba(203,176,116,.06), transparent 60%),
+      linear-gradient(180deg, var(--bg0), var(--bg1));
+    background-attachment:fixed; -webkit-font-smoothing:antialiased; overflow-x:hidden;
+  }
+  body::before{
+    content:""; position:fixed; inset:0; pointer-events:none;
+    opacity:.06; mix-blend-mode:overlay; z-index:0;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)' opacity='.4'/%3E%3C/svg%3E");
+  }
+
+  /* ===== Fade overlay ===== */
+  .fade{ position:fixed; inset:0; background:#000; opacity:0; pointer-events:none; transition:opacity .6s var(--ease); z-index:9999; }
+  .fade.on{ opacity:1; pointer-events:auto; }
+
+  /* ===== PIN gate ===== */
+  #gate{
+    position:fixed; inset:0; z-index:600; display:grid; place-items:center; text-align:center; padding:30px;
+    background:
+      radial-gradient(900px 600px at 50% 35%, rgba(63,107,120,.12), transparent 60%),
+      linear-gradient(180deg, #04050a, #080a12);
+    transition:opacity .7s var(--ease);
+  }
+  #gate.hide{ opacity:0; pointer-events:none; }
+  .gateInner{ max-width:440px; }
+  .gateKicker{ letter-spacing:.32em; text-transform:uppercase; font-size:12px; color:var(--gold); opacity:.8; margin-bottom:18px; }
+  .gateTitle{ font-size:clamp(28px,7vw,44px); line-height:1.0; margin:0 0 14px; font-weight:600; }
+  .gateSub{ color:var(--muted); font-style:italic; margin:0 0 30px; }
+  .pinRow{ display:flex; gap:10px; justify-content:center; margin-bottom:18px; }
+  .pinBox{
+    width:52px; height:62px; text-align:center; font-size:26px; font-family:inherit;
+    background:rgba(0,0,0,.4); border:1px solid var(--line); color:var(--ink); outline:none;
+    transition:border-color .2s var(--ease), background .2s var(--ease);
+  }
+  .pinBox:focus{ border-color:var(--gold); background:rgba(0,0,0,.6); }
+  .pinBox.filled{ border-color:rgba(203,176,116,.5); }
+  #gate.shake .pinRow{ animation:shake .4s var(--ease); }
+  @keyframes shake{ 0%,100%{transform:translateX(0)} 20%{transform:translateX(-9px)} 40%{transform:translateX(8px)} 60%{transform:translateX(-5px)} 80%{transform:translateX(4px)} }
+  .gateMsg{ color:var(--muted); font-style:italic; font-size:14px; min-height:20px; }
+  .gateMsg.err{ color:#e0897c; }
+
+  /* ===== Splash ===== */
+  #splash{
+    position:fixed; inset:0; z-index:500; cursor:pointer;
+    display:grid; place-items:center; text-align:center; padding:30px;
+    background:
+      radial-gradient(1000px 700px at 50% 40%, rgba(63,107,120,.14), transparent 60%),
+      linear-gradient(180deg, #04050a, #080a12);
+    overflow:hidden;
+  }
+  .splashArt{
+    position:absolute; left:50%; top:46%; transform:translate(-50%,-50%);
+    width:min(78vh,640px); height:min(78vh,640px); max-width:92vw; max-height:92vw;
+    object-fit:contain; opacity:.5; pointer-events:none; z-index:0;
+    mask-image:radial-gradient(circle at 50% 50%, #000 58%, transparent 74%);
+    -webkit-mask-image:radial-gradient(circle at 50% 50%, #000 58%, transparent 74%);
+  }
+  .splashArtVeil{
+    position:absolute; inset:0; z-index:1; pointer-events:none;
+    background:
+      radial-gradient(120% 80% at 50% 50%, transparent 30%, rgba(5,6,10,.55) 100%),
+      linear-gradient(180deg, rgba(5,6,10,.45), rgba(5,6,10,.30) 45%, rgba(5,6,10,.78));
+  }
+  #splash.hide{ opacity:0; pointer-events:none; transition:opacity .8s var(--ease); }
+  .splashInner{ max-width:560px; position:relative; z-index:2; }
+  .splashKicker{ letter-spacing:.34em; text-transform:uppercase; font-size:12px; color:var(--gold); opacity:.8; margin-bottom:20px; }
+  .splashTitle{ font-size:clamp(46px,12vw,84px); line-height:.95; margin:0 0 16px; font-weight:600; }
+  .splashSub{ color:var(--muted); font-style:italic; margin:0 0 36px; }
+  .splashHint{ color:var(--faint); font-size:14px; letter-spacing:.08em; animation:pulse 2.6s var(--ease) infinite; }
+  @keyframes pulse{ 0%,100%{ opacity:.35 } 50%{ opacity:.85 } }
+
+  /* ===== Cinematic ===== */
+  #cinematic{ position:fixed; inset:0; z-index:400; display:none; background:#04050a; }
+  #cinematic.show{ display:block; }
+  .cineStage{ position:absolute; inset:0; overflow:hidden; }
+  .cineImg{
+    position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
+    opacity:0; transform:scale(1.06); transition:opacity 1.6s var(--ease), transform 9s linear;
+  }
+  .cineImg.show{ opacity:.62; transform:scale(1.0); }
+  .cineVignette{
+    position:absolute; inset:0; pointer-events:none;
+    background:
+      radial-gradient(120% 90% at 50% 30%, transparent 40%, rgba(0,0,0,.55) 100%),
+      linear-gradient(180deg, rgba(0,0,0,.30), rgba(0,0,0,.78));
+  }
+  .cineText{
+    position:absolute; left:0; right:0; bottom:0; padding:0 24px 12vh;
+    display:grid; place-items:center; pointer-events:none;
+  }
+  .cineLine{
+    max-width:760px; text-align:center; font-size:clamp(20px,3.4vw,30px); line-height:1.4;
+    color:#f4f5fa; text-shadow:0 2px 30px rgba(0,0,0,.9), 0 0 4px rgba(0,0,0,.8);
+    opacity:0; transform:translateY(14px); transition:opacity 1s var(--ease), transform 1s var(--ease);
+  }
+  .cineLine.show{ opacity:1; transform:translateY(0); }
+  .cineLine em{ color:var(--gold); font-style:italic; }
+  .cineSkip{
+    position:absolute; top:20px; right:22px; z-index:5; pointer-events:auto;
+    background:rgba(0,0,0,.4); border:1px solid var(--line); color:var(--muted);
+    font:inherit; font-size:14px; letter-spacing:.06em; padding:8px 16px; cursor:pointer;
+    transition:all .2s var(--ease);
+  }
+  .cineSkip:hover{ border-color:var(--gold); color:var(--ink); }
+  .cineProgress{ position:absolute; left:0; bottom:0; height:2px; width:0%; background:var(--gold); opacity:.5; transition:width .3s linear; }
+
+  /* ===== Finale: hard black with words typed on the void ===== */
+  #finale{
+    position:absolute; inset:0; z-index:8; background:#000;
+    display:none; place-items:center; opacity:0;
+    transition:opacity 1.1s var(--ease);
+  }
+  #finale.show{ display:grid; opacity:1; }
+  .finaleLine{
+    max-width:820px; text-align:center; padding:0 24px;
+    font-size:clamp(26px,5vw,46px); line-height:1.3; letter-spacing:.01em;
+    color:#f4f5fa; font-style:italic;
+  }
+  .finaleLine .w{
+    opacity:0; filter:blur(6px); display:inline-block;
+    transition:opacity .5s var(--ease), filter .5s var(--ease);
+    text-shadow:0 0 30px rgba(0,0,0,.9);
+  }
+  .finaleLine .w.show{ opacity:1; filter:blur(0); }
+
+  /* ===== Main (form) ===== */
+  #main{ position:relative; z-index:1; opacity:0; transition:opacity 1s var(--ease); }
+  #main.show{ opacity:1; }
+
+  .stage{
+    display:grid; grid-template-columns: 1fr minmax(0,640px) 1fr; gap:0;
+    align-items:stretch; min-height:100vh;
+  }
+  .flank{ position:relative; overflow:hidden; }
+  .flank img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:.5; }
+  .flank::after{
+    content:""; position:absolute; inset:0;
+    background:linear-gradient(180deg, rgba(5,6,10,.4), rgba(5,6,10,.85));
+  }
+  .flank.left::before, .flank.right::before{
+    content:""; position:absolute; top:0; bottom:0; width:120px; z-index:2; pointer-events:none;
+  }
+  .flank.left::before{ right:0; background:linear-gradient(90deg, transparent, var(--bg1)); }
+  .flank.right::before{ left:0; background:linear-gradient(270deg, transparent, var(--bg1)); }
+
+  .column{ padding:64px 30px 120px; }
+
+  .kicker{ letter-spacing:.32em; text-transform:uppercase; font-size:12px; color:var(--gold); opacity:.85; margin-bottom:16px; }
+  h1{ font-size:clamp(34px,7vw,54px); line-height:.98; margin:0 0 6px; font-weight:600; }
+  .sub{ color:var(--muted); font-style:italic; margin:0 0 34px; }
+  .rule{ height:1px; background:var(--line); margin:30px 0; border:0; }
+
+  .replay{
+    background:none; border:1px solid var(--line); color:var(--muted); font:inherit; font-size:14px;
+    padding:8px 14px; cursor:pointer; margin-bottom:30px; transition:all .2s var(--ease);
+  }
+  .replay:hover{ border-color:var(--gold); color:var(--ink); }
+
+  /* form */
+  .formHead{ letter-spacing:.26em; text-transform:uppercase; font-size:12px; color:var(--gold); opacity:.85; margin:0 0 6px; }
+  .formIntro{ color:var(--muted); font-style:italic; margin:0 0 30px; }
+  .field{ margin:0 0 26px; }
+  label.q{ display:block; font-size:16px; color:var(--ink); margin-bottom:10px; font-weight:600; }
+  label.q .opt{ color:var(--faint); font-weight:400; font-style:italic; }
+  .hint{ color:var(--muted); font-size:14px; font-style:italic; margin:-4px 0 10px; }
+  input[type=text]{
+    width:100%; background:rgba(0,0,0,.32); border:1px solid var(--line); color:var(--ink);
+    font:inherit; font-size:17px; padding:12px 14px; outline:none;
+    transition:border-color .2s var(--ease), background .2s var(--ease);
+  }
+  input[type=text]:focus{ border-color:var(--gold); background:rgba(0,0,0,.5); }
+  input::placeholder{ color:var(--faint); font-style:italic; }
+  .seg{ display:flex; flex-wrap:wrap; gap:8px; }
+  .chip{ flex:1 1 auto; }
+  .chip input{ position:absolute; opacity:0; pointer-events:none; }
+  .chip label{ display:block; text-align:center; cursor:pointer; user-select:none; border:1px solid var(--line);
+    background:rgba(0,0,0,.28); padding:11px 12px; font-size:15px; color:var(--muted); transition:all .18s var(--ease); }
+  .chip input:checked + label{ border-color:var(--gold); color:var(--ink); background:rgba(203,176,116,.12); }
+  .chip label:hover{ border-color:rgba(203,176,116,.5); color:var(--ink); }
+  .grid{ display:grid; gap:10px; }
+  .slot input{ position:absolute; opacity:0; pointer-events:none; }
+  .slot label{ display:flex; align-items:center; gap:14px; cursor:pointer; user-select:none; border:1px solid var(--line);
+    background:rgba(0,0,0,.26); padding:14px 16px; transition:all .18s var(--ease); }
+  .slot label:hover{ border-color:rgba(63,107,120,.7); background:rgba(63,107,120,.10); }
+  .slot input:checked + label{ border-color:var(--water); background:rgba(63,107,120,.18); color:var(--ink); }
+  .slot .mark{ width:18px; height:18px; flex:none; border:1px solid var(--faint); display:grid; place-items:center; transition:all .18s var(--ease); }
+  .slot input:checked + label .mark{ border-color:var(--water); background:var(--water); }
+  .slot input:checked + label .mark::after{ content:"✓"; font-size:12px; color:#05060a; line-height:1; }
+  .slot .day{ font-weight:600; }
+  .slot .time{ color:var(--muted); margin-left:auto; font-style:italic; }
+  .slot input:checked + label .time{ color:var(--ink); }
+  .btnRow{ margin-top:36px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+  button.send{ appearance:none; border:1px solid var(--gold); background:rgba(203,176,116,.14); color:var(--ink);
+    font:inherit; font-size:17px; letter-spacing:.02em; padding:14px 28px; cursor:pointer; transition:all .2s var(--ease); }
+  button.send:hover{ background:rgba(203,176,116,.26); }
+  button.send:disabled{ opacity:.5; cursor:default; }
+  .status{ color:var(--muted); font-style:italic; font-size:15px; }
+  .status.err{ color:#e0897c; }
+  .status.ok{ color:var(--gold); }
+  .done{ display:none; text-align:center; padding:40px 0 0; }
+  .done.show{ display:block; }
+  .doneRat{
+    display:block; width:min(280px,55%); height:auto; margin:34px 0 0 auto;
+    opacity:.6; pointer-events:none; filter:grayscale(.2);
+  }
+  .done h2{ font-size:30px; margin:0 0 14px; font-weight:600; }
+  .done p{ color:var(--muted); font-style:italic; margin:0 0 8px; }
+  .copyBlock{ margin-top:26px; text-align:left; background:rgba(0,0,0,.4); border:1px solid var(--line);
+    padding:16px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:13px; color:var(--muted);
+    white-space:pre-wrap; line-height:1.5; display:none; }
+  .copyBlock.show{ display:block; }
+  .miniLink{ background:none; border:0; color:var(--gold); font:inherit; font-style:italic; text-decoration:underline;
+    cursor:pointer; padding:0; font-size:15px; }
+
+  /* mute toggle during cinematic */
+  .muteBtn{ position:absolute; top:20px; left:22px; z-index:5; pointer-events:auto;
+    background:rgba(0,0,0,.4); border:1px solid var(--line); color:var(--muted); font:inherit; font-size:14px;
+    padding:8px 14px; cursor:pointer; transition:all .2s var(--ease); }
+  .muteBtn:hover{ border-color:var(--gold); color:var(--ink); }
+
+  @media(max-width:900px){
+    .stage{ grid-template-columns: 1fr; }
+    .flank{ display:none; }
+    .column{ padding:48px 22px 100px; width:min(640px,100%); margin:0 auto; }
+  }
+</style>
+</head>
+<body>
+
+<div class="fade" id="fade"></div>
+
+<!-- ============ PIN GATE ============ -->
+<div id="gate">
+  <div class="gateInner">
+    <div class="gateKicker">the road is watched</div>
+    <h1 class="gateTitle">Harrowfen</h1>
+    <p class="gateSub">Only those who were sent may take the dike road. Speak the word.</p>
+    <div class="pinRow" id="pinRow">
+      <input class="pinBox" type="tel" inputmode="numeric" maxlength="1" autocomplete="off" />
+      <input class="pinBox" type="tel" inputmode="numeric" maxlength="1" autocomplete="off" />
+      <input class="pinBox" type="tel" inputmode="numeric" maxlength="1" autocomplete="off" />
+      <input class="pinBox" type="tel" inputmode="numeric" maxlength="1" autocomplete="off" />
+      <input class="pinBox" type="tel" inputmode="numeric" maxlength="1" autocomplete="off" />
+    </div>
+    <div class="gateMsg" id="gateMsg"></div>
+  </div>
+</div>
+
+<!-- ============ SPLASH ============ -->
+<div id="splash">
+  <img class="splashArt" src="opening-page-background.png" alt="">
+  <div class="splashArtVeil"></div>
+  <div class="splashInner">
+    <div class="splashKicker">a job, if you want it</div>
+    <h1 class="splashTitle">Harrowfen</h1>
+    <p class="splashSub">The watch on the weir is kept in turns.</p>
+    <div class="splashHint">click to begin</div>
+  </div>
+  <div style="position:absolute;bottom:14px;right:16px;font-size:11px;letter-spacing:.12em;color:rgba(238,240,246,.28);">v2.2</div>
+</div>
+
+<!-- ============ CINEMATIC ============ -->
+<div id="cinematic">
+  <div class="cineStage">
+    <!-- Replace src files with your generated images. They cross-fade in order. -->
+    <img class="cineImg" id="img0" src="harrowfen_road_wide.png" alt="">
+    <img class="cineImg" id="img1" src="harrowfen_town.png" alt="">
+    <img class="cineImg" id="img2" src="harrowfen_market.png" alt="">
+    <img class="cineImg" id="img3" src="harrowfen_window.png" alt="">
+    <img class="cineImg" id="img4" src="harrowfen_offering.png" alt="">
+    <div class="cineVignette"></div>
+  </div>
+  <button class="muteBtn" id="muteBtn" type="button">♪ sound on</button>
+  <button class="cineSkip" id="skipBtn" type="button">Skip ›</button>
+  <div class="cineText"><div class="cineLine" id="cineLine"></div></div>
+  <div id="finale"><div class="finaleLine" id="finaleLine"></div></div>
+  <div class="cineProgress" id="cineProgress"></div>
+</div>
+
+<!-- narration audio (voice + music pre-mixed into one file) -->
+<audio id="narration" preload="auto" playsinline>
+  <source src="narration1.mp3" type="audio/mpeg">
+</audio>
+
+<!-- ============ MAIN / FORM ============ -->
+<div id="main">
+  <div class="stage">
+    <div class="flank left"><img src="harrowfen_road.png" alt=""></div>
+
+    <div class="column">
+      <button class="replay" id="replayBtn" type="button">↺ replay the telling</button>
+
+      <div class="kicker">a job, if you want it</div>
+      <h1>Harrowfen</h1>
+      <p class="sub">The watch on the weir is kept in turns.</p>
+      <hr class="rule" />
+
+      <div class="form" id="form">
+        <p class="formHead">Sign the watch roster</p>
+        <p class="formIntro">They'll want to know who's coming, and which nights you can stand the watch. Answer what you can — we'll set our weekly session on the night that suits the most of us.</p>
+
+        <div class="field">
+          <label class="q" for="playerName">Your name</label>
+          <input type="text" id="playerName" placeholder="the name your friends know you by" autocomplete="off" />
+        </div>
+
+        <div class="field">
+          <label class="q" for="discord">Discord handle</label>
+          <input type="text" id="discord" placeholder="e.g. mikeh661" autocomplete="off" />
+        </div>
+
+        <div class="field">
+          <label class="q" for="phone">Phone number</label>
+          <input type="text" id="phone" placeholder="for when Discord's quiet" autocomplete="off" inputmode="tel" />
+        </div>
+
+        <div class="field">
+          <label class="q">How much D&amp;D have you played?</label>
+          <div class="seg" id="expSeg">
+            <span class="chip"><input type="radio" name="exp" id="exp1" value="First time" /><label for="exp1">First time</label></span>
+            <span class="chip"><input type="radio" name="exp" id="exp2" value="A little" /><label for="exp2">A little</label></span>
+            <span class="chip"><input type="radio" name="exp" id="exp3" value="Comfortable" /><label for="exp3">Comfortable</label></span>
+            <span class="chip"><input type="radio" name="exp" id="exp4" value="Veteran" /><label for="exp4">Veteran</label></span>
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="q">Which nights can you take the watch?</label>
+          <div class="hint">Tick every slot that could work — the more you give, the easier it is to land on one.</div>
+          <div class="grid" id="slotGrid"></div>
+        </div>
+
+        <div class="field">
+          <label class="q" for="lost">And — quietly — what has your character lost? <span class="opt">(optional)</span></label>
+          <div class="hint">One thing they'd give almost anything to have back. Keep it to yourself in Harrowfen. Tell me.</div>
+          <input type="text" id="lost" placeholder="a brother, a home, a hand, a faith…" autocomplete="off" />
+        </div>
+
+        <div class="btnRow">
+          <button class="send" id="sendBtn" type="button">Sign the roster</button>
+          <span class="status" id="status"></span>
+        </div>
+      </div>
+
+      <div class="done" id="done">
+        <h2>Your name's on the roster.</h2>
+        <p>The watch is set. We'll send word once the night is chosen.</p>
+        <p style="opacity:.7">Tell no one in Harrowfen what you're missing.</p>
+        <button class="miniLink" id="showCopy" type="button">Submission didn't go through? Copy your answers instead.</button>
+        <div class="copyBlock" id="copyBlock"></div>
+        <img class="doneRat" src="zombie_rat.png" alt="">
+      </div>
+    </div>
+
+    <div class="flank right"><img src="harrowfen_weir.png" alt=""></div>
+  </div>
+</div>
+
+<script>
+  /* ============================================================
+     PIN GATE
+     PIN_HASH is the SHA-256 of your 5-digit PIN. The PIN itself
+     is NOT stored in this file. (Note: a determined, technical
+     visitor could still brute-force a 5-digit hash — this is a
+     "keep the link private" gate, not strong security.)
+     ============================================================ */
+  const PIN_HASH = "eda7655def98ea57c341a16c7873916179d4a0c315988555364f44bc05703c71";
+
+  (function(){
+    const gate = document.getElementById("gate");
+    const boxes = [...document.querySelectorAll("#pinRow .pinBox")];
+    const msg = document.getElementById("gateMsg");
+    boxes[0] && boxes[0].focus();
+
+    async function sha256(str){
+      const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+      return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,"0")).join("");
+    }
+    function value(){ return boxes.map(b=>b.value).join(""); }
+    function clear(){ boxes.forEach(b=>{ b.value=""; b.classList.remove("filled"); }); boxes[0].focus(); }
+
+    async function check(){
+      const pin = value();
+      if(pin.length<5) return;
+      // if no hash configured yet, accept anything so the page is usable during setup
+      if(!PIN_HASH || PIN_HASH.indexOf("PASTE_")===0){ open(); return; }
+      const h = await sha256(pin);
+      if(h === PIN_HASH){ open(); }
+      else{
+        msg.textContent = "That is not the word. The road stays shut.";
+        msg.className = "gateMsg err";
+        gate.classList.add("shake");
+        setTimeout(()=>gate.classList.remove("shake"), 450);
+        setTimeout(clear, 250);
+      }
+    }
+    function open(){
+      msg.textContent = "The road opens.";
+      msg.className = "gateMsg";
+      gate.classList.add("hide");
+      setTimeout(()=>{ gate.style.display="none"; }, 750);
+      try{ sessionStorage.setItem("harrowfen_gate","1"); }catch(e){}
+    }
+
+    boxes.forEach((box,i)=>{
+      box.addEventListener("input", ()=>{
+        box.value = box.value.replace(/\D/g,"").slice(0,1);
+        box.classList.toggle("filled", !!box.value);
+        if(box.value && i<boxes.length-1) boxes[i+1].focus();
+        if(i===boxes.length-1 && box.value) check();
+        msg.textContent=""; msg.className="gateMsg";
+      });
+      box.addEventListener("keydown", e=>{
+        if(e.key==="Backspace" && !box.value && i>0){ boxes[i-1].focus(); boxes[i-1].value=""; boxes[i-1].classList.remove("filled"); }
+        if(e.key==="Enter") check();
+      });
+      box.addEventListener("paste", e=>{
+        e.preventDefault();
+        const digits=(e.clipboardData.getData("text")||"").replace(/\D/g,"").slice(0,5).split("");
+        digits.forEach((d,j)=>{ if(boxes[j]){ boxes[j].value=d; boxes[j].classList.add("filled"); } });
+        if(digits.length>=5) check(); else if(boxes[digits.length]) boxes[digits.length].focus();
+      });
+    });
+
+    // remember unlock for this browser session so a reload doesn't re-prompt
+    try{ if(sessionStorage.getItem("harrowfen_gate")==="1"){ gate.style.display="none"; } }catch(e){}
+  })();
+
+  /* ============================================================
+     CONFIG
+     1. ENDPOINT  — your Google Apps Script Web App URL.
+     2. narration1.mp3 — combined voice+music render, beside this file.
+     3. NARRATION — the lines below, each shown at a timestamp (sec)
+        synced to your MP3. Tune the `at` values to match your audio.
+     ============================================================ */
+  const ENDPOINT = "https://script.google.com/macros/s/AKfycbxA1DT06DnunJH0z7pIPgYqlrYbqf04rnJ5rzMWruIpXCRa1HbbMg5CzRoB_KcIz2hJiw/exec";
+
+  /* Each line: when to show it (seconds into narration1.mp3),
+     and which background image index is active (0-4). */
+  const NARRATION = [
+    { at:0.1, img:0, text:"All right. Here's the work, and it's good money — so hear me out before you say anything." },
+    { at:7.8, img:0, text:"A river town called Harrowfen, half a day east along the dike road. It's drowning. Slow — but it's drowning." },
+    { at:16.3, img:1, text:"The Fen's coming up over the old defences. Fields are under. Farms gone quiet. And the lock that holds it all back — the Keystone Weir — is failing." },
+    { at:28.7, img:1, text:"They want hands. People to wade the flooded cellars, hold the weir through a surge, find out why the water won't stop." },
+    { at:38.1, img:1, text:"And the pay is <em>stupid</em> money. More than a town that size should have. I asked where it came from and got smiles. So I stopped asking." },
+    { at:49.7, img:2, text:"Now — I'll be straight with you. It's a strange town. They're not frightened the way drowning people get frightened. They're calm." },
+    { at:59.1, img:2, text:"There's a fellow living there. Soft sort, asks for nothing, and they love him for it. They say he gives things back. Dead things." },
+    { at:69.3, img:3, text:"The grocer's boy went in the millrace last spring. He's behind the counter now — cold hand and all — smiling away." },
+    { at:78.8, img:3, text:"I'll tell you what put the chill in me. Three doors down: children gone grey, and thin, and quiet. Like something's let out of them, a spoonful at a time." },
+    { at:91.6, img:3, text:"And their own mothers, shining-eyed, telling me how <em>well</em> everyone's children are. Never glancing at them." },
+    { at:98.4, img:4, text:"The man will want to meet you. He'll be pleasant. And somewhere in it he'll ask you — gentle as you like — what <em>you've</em> lost." },
+    { at:109.5, img:4, text:"So that's the job. Good coin. Real work. And something underneath it I didn't care to understand." },
+    { at:116.8, img:4, text:"But if you take it — and the money says you will — do yourself one kindness." },
+  ];
+
+  /* The closing line is handled separately as a fade-to-black finale,
+     typed onto the void word by word, timed to the voice. */
+  const FINALE = {
+    fadeAt: 123.6,                 // black hits as the final line begins
+    words: [
+      { at:124.2, w:"you" },
+      { at:124.8, w:"keep" },
+      { at:125.7, w:"your" },
+      { at:126.5, w:"mouth" },
+      { at:128.7, w:"shut." },     // lands after the dramatic pause (127.5–128.65 is silent)
+    ]
+  };
+
+  /* ---- Candidate watch nights ---- */
+  const SLOTS = [
+    { day:"Monday",   time:"6:00pm" },
+    { day:"Thursday", time:"6:00pm" },
+    { day:"Friday",   time:"6:00pm" },
+    { day:"Saturday", time:"10:00am" },
+    { day:"Saturday", time:"5:00pm" },
+    { day:"Sunday",   time:"10:00am" },
+    { day:"Sunday",   time:"5:00pm" },
+  ];
+
+  const $ = id => document.getElementById(id);
+
+  /* build slots */
+  const grid = $("slotGrid");
+  SLOTS.forEach((s,i)=>{
+    const id="slot"+i;
+    const div=document.createElement("div");
+    div.className="slot";
+    div.innerHTML='<input type="checkbox" id="'+id+'" value="'+s.day+' '+s.time+'">'+
+      '<label for="'+id+'"><span class="mark"></span><span class="day">'+s.day+'</span>'+
+      '<span class="time">'+s.time+'</span></label>';
+    grid.appendChild(div);
+  });
+
+  /* ---------- Cinematic engine ---------- */
+  const narration = $("narration");
+  const cineLine  = $("cineLine");
+  const cineProg  = $("cineProgress");
+  const imgs = [0,1,2,3,4].map(i=>$("img"+i));
+  let started=false, finished=false, curImg=-1, curLine=-1, rafId=null, muted=false;
+  let finaleOn=false, finaleWordIdx=-1;
+  const finaleEl=$("finale"), finaleLineEl=$("finaleLine");
+  // prebuild word spans
+  FINALE.words.forEach((o,i)=>{
+    const span=document.createElement("span");
+    span.className="w"; span.id="fw"+i; span.textContent=o.w;
+    finaleLineEl.appendChild(span);
+    if(i<FINALE.words.length-1) finaleLineEl.appendChild(document.createTextNode(" "));
+  });
+  const NAR_DURATION_FALLBACK = 132; // seconds, if mp3 missing
+
+  function showImg(idx){
+    if(idx===curImg) return;
+    imgs.forEach((im,i)=> im.classList.toggle("show", i===idx));
+    curImg=idx;
+  }
+  function showLine(text){
+    cineLine.classList.remove("show");
+    setTimeout(()=>{ cineLine.innerHTML=text; cineLine.classList.add("show"); }, 220);
+  }
+
+  function tick(){
+    const t = narration.currentTime || 0;
+    const dur = narration.duration && isFinite(narration.duration) ? narration.duration : NAR_DURATION_FALLBACK;
+    cineProg.style.width = Math.min(100, (t/dur)*100) + "%";
+
+    // advance to the latest line whose timestamp has passed
+    let idx=-1;
+    for(let i=0;i<NARRATION.length;i++){ if(t >= NARRATION[i].at) idx=i; }
+    if(idx!==-1 && idx!==curLine){
+      curLine=idx;
+      showImg(NARRATION[idx].img);
+      showLine(NARRATION[idx].text);
+    }
+
+    // finale: fade to black, then type the words onto the void
+    if(!finaleOn && t >= FINALE.fadeAt){
+      finaleOn=true;
+      cineLine.classList.remove("show");   // clear any lingering caption
+      finaleEl.classList.add("show");
+    }
+    if(finaleOn){
+      let w=-1;
+      for(let i=0;i<FINALE.words.length;i++){ if(t >= FINALE.words[i].at) w=i; }
+      while(finaleWordIdx < w){
+        finaleWordIdx++;
+        const el=$("fw"+finaleWordIdx); if(el) el.classList.add("show");
+      }
+    }
+
+    if(!finished) rafId=requestAnimationFrame(tick);
+  }
+
+  function startCinematic(){
+    if(started) return; started=true;
+    $("splash").classList.add("hide");
+    setTimeout(()=> $("splash").style.display="none", 800);
+    $("cinematic").classList.add("show");
+
+    // begin audio on this user gesture
+    try{ narration.currentTime=0; narration.muted=false; narration.volume=1.0; const p=narration.play(); if(p&&p.catch)p.catch(()=>{}); }catch(e){}
+
+    showImg(0);
+    // first line immediately
+    curLine=0; showLine(NARRATION[0].text);
+    rafId=requestAnimationFrame(tick);
+
+    // end when audio finishes (or fallback timer if no mp3)
+    narration.addEventListener("ended", ()=> setTimeout(endCinematic, 1400), { once:true });
+    if(!narration.duration || !isFinite(narration.duration)){
+      setTimeout(()=>{ if(!finished) endCinematic(); }, (NAR_DURATION_FALLBACK+1.4)*1000);
+    }
+  }
+
+  function endCinematic(){
+    if(finished) return; finished=true;
+    if(rafId) cancelAnimationFrame(rafId);
+    const fade=$("fade");
+    fade.classList.add("on");
+    try{ narration.pause(); }catch(e){}
+    setTimeout(()=>{
+      $("cinematic").classList.remove("show");
+      $("cinematic").style.display="none";
+      $("main").classList.add("show");
+      fade.classList.remove("on");
+      window.scrollTo({top:0});
+    }, 650);
+  }
+
+  $("splash").addEventListener("click", startCinematic);
+  $("skipBtn").addEventListener("click", (e)=>{ e.stopPropagation(); endCinematic(); });
+  $("muteBtn").addEventListener("click", (e)=>{
+    e.stopPropagation(); muted=!muted;
+    narration.muted=muted;
+    $("muteBtn").textContent = muted ? "♪ sound off" : "♪ sound on";
+  });
+  $("replayBtn").addEventListener("click", ()=>{
+    finished=false; started=false; curImg=-1; curLine=-1;
+    finaleOn=false; finaleWordIdx=-1;
+    finaleEl.classList.remove("show");
+    FINALE.words.forEach((o,i)=>{ const el=$("fw"+i); if(el) el.classList.remove("show"); });
+    $("main").classList.remove("show");
+    $("cinematic").style.display="";
+    $("finale").style.display="";
+    $("splash").style.display=""; $("splash").classList.remove("hide");
+  });
+
+  /* ---------- Form logic ---------- */
+  const statusEl=$("status");
+  function collect(){
+    const exp=document.querySelector('input[name="exp"]:checked');
+    const slots=[...document.querySelectorAll('#slotGrid input:checked')].map(c=>c.value);
+    return {
+      submittedAt:new Date().toISOString(),
+      playerName:$("playerName").value.trim(),
+      discord:$("discord").value.trim(),
+      phone:$("phone").value.trim(),
+      experience:exp?exp.value:"",
+      availability:slots,
+      lost:$("lost").value.trim()
+    };
+  }
+  function asText(d){
+    return [
+      "HARROWFEN — WATCH ROSTER",
+      "Player:      "+(d.playerName||"—"),
+      "Discord:     "+(d.discord||"—"),
+      "Phone:       "+(d.phone||"—"),
+      "Experience:  "+(d.experience||"—"),
+      "Available:   "+(d.availability.length?d.availability.join(", "):"—"),
+      "Has lost:    "+(d.lost||"—"),
+    ].join("\n");
+  }
+  function showDone(d){
+    $("form").style.display="none"; $("done").classList.add("show");
+    $("copyBlock").textContent=asText(d);
+    window.scrollTo({top:0,behavior:"smooth"});
+  }
+  $("showCopy").addEventListener("click", ()=>{
+    const b=$("copyBlock"); b.classList.toggle("show");
+    if(b.classList.contains("show")){ const r=document.createRange(); r.selectNodeContents(b);
+      const s=window.getSelection(); s.removeAllRanges(); s.addRange(r); }
+  });
+  $("sendBtn").addEventListener("click", async ()=>{
+    const d=collect();
+    if(!d.playerName){ statusEl.className="status err"; statusEl.textContent="Give me a name first."; return; }
+    if(!d.discord && !d.phone){ statusEl.className="status err"; statusEl.textContent="I'll need a Discord handle or a phone number."; return; }
+    if(d.availability.length===0){ statusEl.className="status err"; statusEl.textContent="Tick at least one night you can make."; return; }
+    const btn=$("sendBtn"); btn.disabled=true; statusEl.className="status"; statusEl.textContent="Signing…";
+    if(!ENDPOINT || ENDPOINT.indexOf("PASTE_YOUR")===0){ showDone(d); $("copyBlock").classList.add("show"); return; }
+    try{
+      await fetch(ENDPOINT,{ method:"POST", mode:"no-cors",
+        headers:{ "Content-Type":"text/plain;charset=utf-8" }, body:JSON.stringify(d) });
+      showDone(d);
+    }catch(err){
+      btn.disabled=false; statusEl.className="status err";
+      statusEl.textContent="Couldn't reach the roster. Use the copy option below.";
+      showDone(d); $("copyBlock").classList.add("show");
+    }
+  });
+</script>
+</body>
+</html>

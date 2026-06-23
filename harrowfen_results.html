@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Harrowfen — Keeper's Tally · v1.0</title>
+<style>
+  :root{
+    --bg0:#05060a; --bg1:#090b13; --ink:#eef0f6;
+    --muted:rgba(238,240,246,.60); --faint:rgba(238,240,246,.40);
+    --gold:#cbb074; --rust:#9c4b3b; --water:#3f6b78;
+    --line:rgba(238,240,246,.10); --ease:cubic-bezier(.2,.85,.2,1);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; }
+  body{
+    color:var(--ink); font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    font-size:17px; line-height:1.6;
+    background:
+      radial-gradient(1000px 700px at 15% -10%, rgba(63,107,120,.14), transparent 60%),
+      radial-gradient(900px 600px at 90% 0%, rgba(156,75,59,.09), transparent 55%),
+      linear-gradient(180deg, var(--bg0), var(--bg1));
+    background-attachment:fixed; -webkit-font-smoothing:antialiased; min-height:100vh;
+  }
+  .wrap{ width:min(820px,100%); margin:0 auto; padding:54px 22px 110px; }
+  .kicker{ letter-spacing:.30em; text-transform:uppercase; font-size:12px; color:var(--gold); opacity:.85; margin-bottom:14px; }
+  h1{ font-size:clamp(32px,6vw,48px); margin:0 0 4px; font-weight:600; }
+  .sub{ color:var(--muted); font-style:italic; margin:0 0 28px; }
+  .rule{ height:1px; background:var(--line); margin:26px 0; border:0; }
+
+  .bar{ display:flex; gap:10px; align-items:center; margin-bottom:24px; flex-wrap:wrap; }
+  button, .btn{
+    appearance:none; border:1px solid var(--line); background:rgba(0,0,0,.3); color:var(--ink);
+    font:inherit; font-size:15px; padding:10px 18px; cursor:pointer; transition:all .2s var(--ease);
+  }
+  button:hover{ border-color:var(--gold); }
+  button.primary{ border-color:var(--gold); background:rgba(203,176,116,.14); }
+  button.primary:hover{ background:rgba(203,176,116,.26); }
+  .status{ color:var(--muted); font-style:italic; font-size:14px; }
+  .status.err{ color:#e0897c; }
+
+  .config{ background:rgba(0,0,0,.34); border:1px solid var(--line); padding:18px; margin-bottom:26px; }
+  .config label{ display:block; font-size:13px; color:var(--muted); margin-bottom:8px; letter-spacing:.04em; }
+  .config input{ width:100%; background:rgba(0,0,0,.4); border:1px solid var(--line); color:var(--ink);
+    font:inherit; font-size:14px; padding:10px 12px; outline:none; font-family:ui-monospace,Menlo,Consolas,monospace; }
+  .config input:focus{ border-color:var(--gold); }
+  .config .row{ display:flex; gap:10px; margin-top:12px; align-items:center; }
+
+  .head2{ letter-spacing:.22em; text-transform:uppercase; font-size:12px; color:var(--gold); opacity:.85; margin:34px 0 14px; }
+
+  /* slot tally */
+  .slot{ margin-bottom:12px; }
+  .slotTop{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:5px; }
+  .slotName{ font-weight:600; }
+  .slotName .t{ color:var(--muted); font-style:italic; font-weight:400; margin-left:8px; font-size:15px; }
+  .slotCount{ color:var(--muted); font-size:14px; font-variant-numeric:tabular-nums; }
+  .track{ position:relative; height:30px; background:rgba(0,0,0,.32); border:1px solid var(--line); overflow:hidden; }
+  .fill{ position:absolute; inset:0 auto 0 0; width:0%; background:linear-gradient(90deg, rgba(63,107,120,.55), rgba(63,107,120,.30));
+    transition:width .7s var(--ease); }
+  .slot.win .fill{ background:linear-gradient(90deg, rgba(203,176,116,.6), rgba(203,176,116,.32)); }
+  .slot.win .slotName{ color:var(--gold); }
+  .names{ font-size:13px; color:var(--muted); margin-top:5px; min-height:1px; }
+  .winFlag{ display:inline-block; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:#05060a;
+    background:var(--gold); padding:2px 8px; margin-left:8px; vertical-align:middle; }
+
+  /* roster */
+  .person{ border:1px solid var(--line); background:rgba(0,0,0,.26); padding:14px 16px; margin-bottom:10px; }
+  .pName{ font-weight:600; font-size:17px; }
+  .pMeta{ color:var(--muted); font-size:14px; margin-top:3px; }
+  .pMeta .sep{ opacity:.4; margin:0 8px; }
+  .pAvail{ color:var(--faint); font-size:13px; margin-top:6px; font-style:italic; }
+  .pLost{ color:var(--rust); font-size:14px; margin-top:8px; font-style:italic; }
+  .pLost b{ color:var(--muted); font-style:normal; font-weight:400; }
+
+  .empty{ color:var(--muted); font-style:italic; padding:30px 0; text-align:center; }
+  .count{ color:var(--gold); font-variant-numeric:tabular-nums; }
+  .foot{ color:var(--faint); font-size:12px; margin-top:40px; letter-spacing:.06em; }
+  code{ font-family:ui-monospace,Menlo,Consolas,monospace; background:rgba(0,0,0,.4); padding:1px 6px; font-size:13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="kicker">for the keeper's eyes only</div>
+  <h1>The Watch Roster</h1>
+  <p class="sub">Who answered the call, and the night the most can stand the weir.</p>
+
+  <div class="config" id="config">
+    <label for="ep">Apps Script Web App URL (the same one the sign-up form posts to)</label>
+    <input type="text" id="ep" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off" />
+    <div class="row">
+      <button class="primary" id="loadBtn" type="button">Read the roster</button>
+      <button id="saveBtn" type="button">Remember this URL</button>
+      <span class="status" id="status"></span>
+    </div>
+  </div>
+
+  <div id="results" style="display:none;">
+    <div class="bar">
+      <button id="refreshBtn" type="button">↻ Refresh</button>
+      <span class="status" id="meta"></span>
+    </div>
+
+    <div class="head2">Best nights for the watch</div>
+    <div id="tally"></div>
+
+    <div class="head2">The roster <span class="count" id="rosterCount"></span></div>
+    <div id="roster"></div>
+  </div>
+
+  <div class="foot" id="foot"></div>
+</div>
+
+<script>
+  /* ---- slots must match the sign-up page ---- */
+  const SLOTS = [
+    { day:"Monday",   time:"6:00pm" },
+    { day:"Thursday", time:"6:00pm" },
+    { day:"Friday",   time:"6:00pm" },
+    { day:"Saturday", time:"10:00am" },
+    { day:"Saturday", time:"5:00pm" },
+    { day:"Sunday",   time:"10:00am" },
+    { day:"Sunday",   time:"5:00pm" },
+  ];
+  const slotKey = s => s.day + " " + s.time;
+
+  const $ = id => document.getElementById(id);
+  const LS_KEY = "harrowfen_results_endpoint";
+
+  // restore saved URL
+  try{ const saved = localStorage.getItem(LS_KEY); if(saved) $("ep").value = saved; }catch(e){}
+
+  $("saveBtn").addEventListener("click", ()=>{
+    try{ localStorage.setItem(LS_KEY, $("ep").value.trim()); setStatus("status","Saved on this device.",""); }
+    catch(e){ setStatus("status","Couldn't save here.","err"); }
+  });
+
+  function setStatus(id,msg,cls){ const el=$(id); el.textContent=msg; el.className="status"+(cls?(" "+cls):""); }
+
+  $("loadBtn").addEventListener("click", load);
+  $("refreshBtn").addEventListener("click", load);
+
+  async function load(){
+    const url = $("ep").value.trim();
+    if(!url){ setStatus("status","Paste your Apps Script URL first.","err"); return; }
+    setStatus("status","Reading…","");
+    setStatus("meta","Reading…","");
+    try{
+      const res = await fetch(url, { method:"GET" });
+      const text = await res.text();
+      let rows;
+      try{ rows = JSON.parse(text); }
+      catch(e){ throw new Error("That URL didn't return roster data. Check the doGet is deployed."); }
+      if(!Array.isArray(rows)) rows = rows.rows || [];
+      render(rows);
+      setStatus("status","",""); 
+      $("config").style.display="none";
+      $("results").style.display="block";
+    }catch(err){
+      setStatus("status", err.message || "Couldn't read the roster.", "err");
+      setStatus("meta","","");
+    }
+  }
+
+  function parseAvail(v){
+    if(Array.isArray(v)) return v;
+    if(!v) return [];
+    return String(v).split(",").map(s=>s.trim()).filter(Boolean);
+  }
+
+  function render(rows){
+    // normalise
+    const people = rows.map(r=>({
+      name: r.playerName || r.name || "—",
+      discord: r.discord || "",
+      phone: r.phone || "",
+      experience: r.experience || "",
+      avail: parseAvail(r.availability),
+      lost: r.lost || "",
+      when: r.submittedAt || ""
+    })).filter(p=> p.name && p.name!=="—" || p.avail.length);
+
+    $("meta").textContent = people.length + " response" + (people.length===1?"":"s") +
+      " · read " + new Date().toLocaleString();
+    $("rosterCount").textContent = "(" + people.length + ")";
+
+    // tally per slot
+    const counts = SLOTS.map(s=>{
+      const k = slotKey(s);
+      const who = people.filter(p=> p.avail.includes(k)).map(p=>p.name);
+      return { slot:s, key:k, who };
+    });
+    const max = Math.max(1, ...counts.map(c=>c.who.length));
+    const bestCount = Math.max(0, ...counts.map(c=>c.who.length));
+
+    $("tally").innerHTML = counts.map(c=>{
+      const n = c.who.length;
+      const pct = Math.round((n/max)*100);
+      const isWin = n>0 && n===bestCount;
+      return `<div class="slot ${isWin?'win':''}">
+        <div class="slotTop">
+          <div class="slotName">${c.slot.day}<span class="t">${c.slot.time}</span>${isWin?'<span class="winFlag">best</span>':''}</div>
+          <div class="slotCount">${n} / ${people.length}</div>
+        </div>
+        <div class="track"><div class="fill" style="width:${pct}%"></div></div>
+        <div class="names">${c.who.length? c.who.join(", ") : "&nbsp;"}</div>
+      </div>`;
+    }).join("");
+
+    // roster
+    if(!people.length){
+      $("roster").innerHTML = `<div class="empty">No one has signed the roster yet.</div>`;
+      return;
+    }
+    $("roster").innerHTML = people.map(p=>{
+      const contact = [ p.discord && ("Discord: "+p.discord), p.phone && ("Phone: "+p.phone) ]
+        .filter(Boolean).join('<span class="sep">·</span>');
+      return `<div class="person">
+        <div class="pName">${esc(p.name)}</div>
+        <div class="pMeta">${contact || "—"}${p.experience?`<span class="sep">·</span>${esc(p.experience)}`:""}</div>
+        <div class="pAvail">Can make: ${p.avail.length? p.avail.map(esc).join(" · ") : "no nights given"}</div>
+        ${p.lost?`<div class="pLost"><b>Has lost:</b> ${esc(p.lost)}</div>`:""}
+      </div>`;
+    }).join("");
+  }
+
+  function esc(s){ return String(s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+  $("foot").innerHTML = 'Reads the same Google Sheet your sign-up form writes to, via the Apps Script <code>doGet</code>. Nothing is stored except the URL, saved only on this device.';
+
+  // auto-load if URL already saved
+  if($("ep").value.trim()) load();
+</script>
+</body>
+</html>
