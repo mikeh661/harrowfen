@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Harrowfen — The Watch on the Weir · v2.2</title>
+<title>Harrowfen — The Watch on the Weir · v2.3</title>
 <style>
   :root{
     --bg0:#05060a;
@@ -227,9 +227,9 @@
   .status.ok{ color:var(--gold); }
   .done{ display:none; text-align:center; padding:40px 0 0; }
   .done.show{ display:block; }
-  .doneRat{
-    display:block; width:min(280px,55%); height:auto; margin:34px 0 0 auto;
-    opacity:.6; pointer-events:none; filter:grayscale(.2);
+  .donePoster{
+    display:block; width:100%; height:auto; margin:36px auto 0;
+    border:1px solid var(--line); box-shadow:0 20px 70px rgba(0,0,0,.6);
   }
   .done h2{ font-size:30px; margin:0 0 14px; font-weight:600; }
   .done p{ color:var(--muted); font-style:italic; margin:0 0 8px; }
@@ -284,7 +284,7 @@
     <p class="splashSub">The watch on the weir is kept in turns.</p>
     <div class="splashHint">click to begin</div>
   </div>
-  <div style="position:absolute;bottom:14px;right:16px;font-size:11px;letter-spacing:.12em;color:rgba(238,240,246,.28);">v2.2</div>
+  <div style="position:absolute;bottom:14px;right:16px;font-size:11px;letter-spacing:.12em;color:rgba(238,240,246,.28);">v2.3</div>
 </div>
 
 <!-- ============ CINEMATIC ============ -->
@@ -376,7 +376,7 @@
         <p style="opacity:.7">Tell no one in Harrowfen what you're missing.</p>
         <button class="miniLink" id="showCopy" type="button">Submission didn't go through? Copy your answers instead.</button>
         <div class="copyBlock" id="copyBlock"></div>
-        <img class="doneRat" src="zombie_rat.png" alt="">
+        <img class="donePoster" src="the_debt_poster.png" alt="The Debt — Harrowfen">
       </div>
     </div>
 
